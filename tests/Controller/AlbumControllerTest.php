@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Request;
 
 class AlbumControllerTest extends WebTestCase
 {
-    public function testIndexPostRequestWithNoAlbums(): void
+    public function testPopulateAlbumsWithNoAlbums(): void
     {
         $client = static::createClient();
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -31,7 +31,7 @@ class AlbumControllerTest extends WebTestCase
         $client->getContainer()->set(AlbumService::class, $albumService);
 
         // Send the POST request
-        $client->request(Request::METHOD_POST, '/albums');
+        $client->request(Request::METHOD_POST, '/albums/populate');
 
         $this->assertResponseStatusCodeSame(200);
         $this->assertJson($client->getResponse()->getContent());
@@ -42,7 +42,7 @@ class AlbumControllerTest extends WebTestCase
         $this->assertCount(count($responseData['data']), $responseData['data']);
     }
 
-    public function testIndexPostRequestWithExistingAlbums(): void
+    public function testPopulateAlbumsRequestWithExistingAlbums(): void
     {
         $client = static::createClient();
         $entityManager = $this->createMock(EntityManagerInterface::class);
@@ -63,7 +63,7 @@ class AlbumControllerTest extends WebTestCase
         $client->getContainer()->set(EntityManagerInterface::class, $entityManager);
 
         // Send the POST request
-        $client->request(Request::METHOD_POST, '/albums');
+        $client->request(Request::METHOD_POST, '/albums/populate');
 
         $this->assertResponseStatusCodeSame(200);
         $this->assertJson($client->getResponse()->getContent());
