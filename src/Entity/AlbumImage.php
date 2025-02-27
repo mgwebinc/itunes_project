@@ -13,7 +13,7 @@ class AlbumImage
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(inversedBy: 'albumImages')]
+    #[ORM\ManyToOne(cascade: ['persist'],inversedBy: 'albumImages')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Album $album = null;
 

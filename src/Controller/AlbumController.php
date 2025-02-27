@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Album;
+use App\Form\AlbumCreateType;
+use App\Form\AlbumUpdateType;
 use App\Helper\NormalizerHelper;
 use App\Service\AlbumService;
 use App\Service\ExternalAlbumManager;
@@ -10,6 +12,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\HttpKernel\Log\Logger;
@@ -45,9 +48,9 @@ final class AlbumController extends AbstractController
      * @param string|null $sortOrder
      * @return JsonResponse
      */
-    #[Route('/albums', name: 'albums', methods: ['GET'])]
+    #[Route('/api/albums', name: 'albums', methods: ['GET'])]
     #[OA\Get(
-        path: '/albums',
+        path: '/api/albums',
         description: 'Lists all albums, allows for filtering via Name, Artist, or Genre and sorting',
         tags: [
             'get_albums',
@@ -128,15 +131,15 @@ final class AlbumController extends AbstractController
 
     /**
      * Post API that populates the db from an external iTunes feed
-     * uses:
+     *
      *
      * @param EntityManagerInterface $entityManager
      * @return JsonResponse
      */
 
-    #[Route('/albums/populate', name: 'populate_albums', methods: ['POST'])]
+    #[Route('/api/albums/populate', name: 'populate_albums', methods: ['POST'])]
     #[OA\Post(
-        path: '/albums/populate',
+        path: '/api/albums/populate',
         tags: [
             'populate_albums'
         ],
@@ -185,16 +188,210 @@ final class AlbumController extends AbstractController
         return $this->formAlbumsResponse($albums, $errors);
     }
 
-    private function formAlbumsResponse(array $albums, array $errors): JsonResponse
+
+    #[Route('/api/album', name: 'create_album', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/album',
+        description: 'Creates a new album',
+        requestBody: new OA\RequestBody(
+            content: new OA\JsonContent(
+                ref: new Model(type: Album::class)
+            )
+        ),
+        tags: ['create_album'],
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Returns the created album',
+                content: new OA\JsonContent(
+                    ref: new Model(type: Album::class)
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Returns an error if the request body is invalid'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Returns an error if the user is not authenticated'
+            ),
+            new OA\Response(
+                response: 500,
+                description: 'Returns an error if an internal error occurs'
+            )
+        ]
+    )]
+    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+//        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
+        $errors = [];
+        try {
+            //Create a new Album and submit form data from request
+            $album = new Album();
+            $form = $this->createForm(AlbumCreateType::class, $album);
+            $form->submit(json_decode($request->getContent(), true));
+
+            if ($form->isValid()) {
+                $entityManager->persist($album);
+                $entityManager->flush();
+
+                return $this->formAlbumsResponse($album, $errors, Response::HTTP_CREATED);
+            } else {
+                $errors = $this->getFormErrors($form);
+                return $this->formAlbumsResponse(null, $errors, Response::HTTP_BAD_REQUEST);
+            }
+        } catch (\Throwable $exception) {
+            $this->logger->error($exception->getMessage());
+            $errors= [$exception->getMessage()];
+            return $this->formAlbumsResponse(null, $errors, Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/api/album/{id}', name: 'update_album', methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/album/{id}',
+        description: 'Updates an existing album',
+        requestBody: new OA\RequestBody(
+            content: new OA\JsonContent(
+                ref: new Model(type: Album::class)
+            )
+        ),
+        tags: ['update_album'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                description: 'The ID of the album to update',
+                in: 'path',
+                schema: new OA\Schema(type: 'integer')
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Returns the updated album',
+                content: new OA\JsonContent(
+                    ref: new Model(type: Album::class)
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Returns an error if the request body is invalid'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Returns an error if the user is not authenticated'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Returns an error if the album is not found'
+            ),
+            new OA\Response(
+                response: 500,
+                description: 'Returns an error if an internal error occurs'
+            )
+        ]
+    )]
+    public function update(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $errors = [];
+        try {
+            //Find Album entity in db and update with form data
+            $album = $entityManager->getRepository(Album::class)->find($id);
+            if (null === $album) {
+                $errors[] = 'Album not found.';
+                return $this->formAlbumsResponse(null, $errors, Response::HTTP_NOT_FOUND);
+            }
+
+            $form = $this->createForm(AlbumUpdateType::class, $album, [
+                'method' => 'PATCH',
+            ]);
+            //When updating DO NOT clear missing attributes from the entity
+            $form->submit(json_decode($request->getContent(), true), false);
+
+            if ($form->isValid()) {
+                $entityManager->flush();
+
+                return $this->formAlbumsResponse($album, $errors);
+            } else {
+                $errors[] = $this->getFormErrors($form);
+                return $this->formAlbumsResponse(null, $errors, Response::HTTP_BAD_REQUEST);
+            }
+        } catch (\Throwable $exception) {
+            $this->logger->error($exception->getMessage());
+            $errors[] = $exception->getMessage();
+            return $this->formAlbumsResponse(null, $errors, Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    #[Route('/api/album/{id}', name: 'delete_album', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/album/{id}',
+        description: 'Deletes an existing album',
+        tags: ['delete_album'],
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                description: 'The ID of the album to delete',
+                in: 'path',
+                schema: new OA\Schema(type: 'integer')
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 204,
+                description: 'Returns no content if the album is deleted successfully'
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Returns an error if the user is not authenticated'
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Returns an error if the album is not found'
+            ),
+            new OA\Response(
+                response: 500,
+                description: 'Returns an error if an internal error occurs'
+            )
+        ]
+    )]
+    public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $errors = [];
+        try {
+            $album = $entityManager->getRepository(Album::class)->find($id);
+            if (null === $album) {
+                $errors[] = 'Album not found.';
+                return $this->formAlbumsResponse(null, $errors, Response::HTTP_NOT_FOUND);
+            }
+
+            $entityManager->remove($album);
+            $entityManager->flush();
+
+            return $this->formAlbumsResponse(null, $errors, Response::HTTP_NO_CONTENT);
+        } catch (\Throwable $exception) {
+            $this->logger->error($exception->getMessage());
+            $errors[] = $exception->getMessage();
+            return $this->formAlbumsResponse(null, $errors, Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private function formAlbumsResponse
+    (
+        mixed $albums,
+        array $errors,
+        int $statusCode = Response::HTTP_OK): JsonResponse
     {
         try {
             //Normalize the data
-            $normalizedAlbums = $this->serializer->normalize
-            (
-                $albums,
-                'json',
-                NormalizerHelper::createAlbumContextArray()
-            );
+            $normalizedAlbums = null;
+            if (null !== $albums) {
+                $normalizedAlbums = $this->serializer->normalize(
+                    $albums,
+                    'json',
+                    NormalizerHelper::createAlbumContextArray()
+                );
+            }
         } catch (\Throwable $exception) {
             //An error occurred normalizing the data
             $this->logger->error($exception->getMessage());
@@ -207,14 +404,24 @@ final class AlbumController extends AbstractController
                 'data' => [],
                 'status' => false,
                 'errors' => $errors
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            ], $statusCode ?? Response::HTTP_INTERNAL_SERVER_ERROR);
         } else {
             //Return success response with data
             $response = new JsonResponse([
                 'data' => $normalizedAlbums ?? [],
                 'status' => true,
-            ]);
+            ], $statusCode);
         }
         return $response;
+    }
+
+    private function getFormErrors(\Symfony\Component\Form\FormInterface $form): array
+    {
+        $errors = [];
+        foreach ($form->getErrors(true) as $error) {
+            $this->logger->error($error->getMessage());
+            $errors[]= $error->getMessage();
+        }
+        return $errors;
     }
 }

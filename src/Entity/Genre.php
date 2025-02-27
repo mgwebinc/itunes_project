@@ -25,7 +25,7 @@ class Genre
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $appleURL = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $category = null;
 
     /**

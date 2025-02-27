@@ -44,7 +44,7 @@ class Album
     /**
      * @var Collection<int, AlbumImage>
      */
-    #[ORM\OneToMany(targetEntity: AlbumImage::class, mappedBy: 'album', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: AlbumImage::class, mappedBy: 'album', cascade: ['persist'], orphanRemoval: true)]
     private Collection $albumImages;
 
     #[ORM\Column]
@@ -53,11 +53,11 @@ class Album
     #[ORM\Column(length: 10)]
     private ?string $currency = null;
 
-    #[ORM\ManyToOne(inversedBy: 'albums')]
+    #[ORM\ManyToOne(cascade: ['persist'], inversedBy: 'albums')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Artist $artist = null;
 
-    #[ORM\ManyToOne(inversedBy: 'albums')]
+    #[ORM\ManyToOne(cascade: ['persist'] ,inversedBy: 'albums')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Genre $genre = null;
 

@@ -55,8 +55,13 @@ if [ "$1" = 'frankenphp' ] || [ "$1" = 'php' ] || [ "$1" = 'bin/console' ]; then
 		if [ "$( find ./migrations -iname '*.php' -print -quit )" ]; then
 			php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
 		fi
-	fi
 
+		#create the test database only because this isn't being launched on prod!
+		php bin/console doctrine:database:create --env=test
+		php bin/console doctrine:schema:create --env=test
+	fi
+  #generate api docs
+  php bin/console nelmio:apidoc:dump
 	setfacl -R -m u:www-data:rwX -m u:"$(whoami)":rwX var
 	setfacl -dR -m u:www-data:rwX -m u:"$(whoami)":rwX var
 
