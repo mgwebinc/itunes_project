@@ -158,6 +158,9 @@ final class AlbumController extends AbstractController
     )]
     public function populateAlbums(EntityManagerInterface $entityManager): JsonResponse
     {
+        //Populate albums only fetches the albums from the external endpoint the first time.
+        //With more time, I would add logic to change the top albums every time and sort them. Rather than just pulling
+        //From the database once
         $errors = [];
         //Retrieve and save albums from external endpoint
         $album = $entityManager->getRepository(Album::class)->find(1);
