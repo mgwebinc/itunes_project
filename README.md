@@ -21,3 +21,7 @@ A project to showcase my abilities in back-end engineering!
 2. Run `docker exec -it containerid bash`
 3. Run `php bin/phpunit tests/Controller/AlbumControllerTest`
 
+## Running the API
+1. Call the POST `/api/albums/populate` endpoint to populate albums from iTunes library.
+2. Try the other endpoints in the documentation
+
