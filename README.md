@@ -5,7 +5,7 @@ A project to showcase my abilities in back-end engineering!
 ## Background Information
 1. This project is using blazing fast `frankenphp` which has native support for symfony and laravel!
 2. Uses MariaDB because of it's superior query speed and scalability compared to MySQL
-3. Uses the latest lts version of `Symfony` which is highly modular in it's architecture (use only what you need!)
+3. Uses the latest lts version of `Symfony` which is highly modular in its architecture (use only what you need!)
 
 ## Getting Started
 1. If not already done, [install Docker Compose](https://docs.docker.com/compose/install/) (v2.10+)
